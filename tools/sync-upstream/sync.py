@@ -54,6 +54,7 @@ Rules:
 5. Where bilingual lines exist (Chinese + English already side by side), keep ONLY the English.
 6. Where a phrase is a brand name or product name in Chinese pinyin (e.g. "Huashu"), keep the pinyin.
 7. Output ONLY the translated file content. No explanations, no markdown code fences around the whole output, no preamble.
+8. YAML frontmatter safety: if the file has a YAML frontmatter block (between two `---` lines) and a translated value contains `: ` (colon-space), `#`, `[`, `]`, `{`, `}`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, `\``, or starts with whitespace, wrap that value in double quotes and escape any internal double quotes with `\\"`. The original may use full-width colons `：` that don't need quoting; ASCII `:` after translation often does.
 
 File path (for context): {path}
 
