@@ -22,12 +22,17 @@ CLONE = TOOLS / ".upstream-clone"
 CACHE_FILE = TOOLS / "translation-cache.json"
 STATE_FILE = TOOLS / "upstream-state.json"
 
-CJK = re.compile(r"[一-鿿㐀-䶿]")
+CJK = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
 TRANSLATABLE_EXTS = {
     ".md", ".html", ".htm", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx",
     ".py", ".sh", ".json", ".css", ".svg", ".txt", ".yml", ".yaml",
 }
-TRANSLATABLE_FILENAMES = {".gitignore", ".gitattributes", ".editorconfig", "Dockerfile", "Makefile"}
+TRANSLATABLE_FILENAMES = {".gitignore", ".gitattributes", ".editorconfig", "Dockerfile", "Makefile", "LICENSE"}
+SKIP_PATHS = {"README.zh.md", "tools/sync-upstream", ".upstream-clone"}
+
+
+def is_skipped(path: str) -> bool:
+    return any(path == p or path.startswith(p + "/") for p in SKIP_PATHS)
 
 
 def run(cmd, cwd=None):
@@ -49,6 +54,8 @@ def main() -> int:
     skipped: list[str] = []
     files = run(["git", "ls-files"], cwd=CLONE).splitlines()
     for rel in files:
+        if is_skipped(rel):
+            continue
         src = CLONE / rel
         if not src.is_file():
             continue

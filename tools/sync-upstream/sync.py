@@ -38,11 +38,13 @@ TRANSLATABLE_EXTS = {
     ".py", ".sh", ".json", ".css", ".svg", ".txt", ".yml", ".yaml",
 }
 # Extensionless files we still treat as text (config files with comments).
-TRANSLATABLE_FILENAMES = {".gitignore", ".gitattributes", ".editorconfig", "Dockerfile", "Makefile"}
-# Files that we never touch even if upstream has them — pipeline-internal paths.
-SKIP_PATHS = {"tools/sync-upstream", ".upstream-clone"}
+TRANSLATABLE_FILENAMES = {".gitignore", ".gitattributes", ".editorconfig", "Dockerfile", "Makefile", "LICENSE"}
+# Files that we never touch even if upstream has them.
+# README.zh.md is intentionally excluded: this repository is the English mirror
+# and should not carry language-specific Chinese artifacts.
+SKIP_PATHS = {"tools/sync-upstream", ".upstream-clone", "README.zh.md"}
 
-CJK_RE = __import__("re").compile(r"[一-鿿㐀-䶿]")
+CJK_RE = __import__("re").compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
 
 TRANSLATE_PROMPT = """You are translating a file from a Chinese open-source project (huashu-design, an HTML-native design skill for Claude Code) into English.
 
@@ -54,7 +56,7 @@ Rules:
 5. Where bilingual lines exist (Chinese + English already side by side), keep ONLY the English.
 6. Where a phrase is a brand name or product name in Chinese pinyin (e.g. "Huashu"), keep the pinyin.
 7. Output ONLY the translated file content. No explanations, no markdown code fences around the whole output, no preamble.
-8. YAML frontmatter safety: if the file has a YAML frontmatter block (between two `---` lines) and a translated value contains `: ` (colon-space), `#`, `[`, `]`, `{`, `}`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, `\``, or starts with whitespace, wrap that value in double quotes and escape any internal double quotes with `\\"`. The original may use full-width colons `：` that don't need quoting; ASCII `:` after translation often does.
+8. YAML frontmatter safety: if the file has a YAML frontmatter block (between two `---` lines) and a translated value contains `: ` (colon-space), `#`, `[`, `]`, `{`, `}`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, `` ` ``, or starts with whitespace, wrap that value in double quotes and escape any internal double quotes with `\\"`. The original may use full-width colons `：` that don't need quoting; ASCII `:` after translation often does.
 
 File path (for context): {path}
 
