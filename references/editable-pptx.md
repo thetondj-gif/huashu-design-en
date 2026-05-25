@@ -1,162 +1,195 @@
-# Editable PPTX Export: HTML Hard Constraints + Sizing Decisions + Common Errors
+# Editable PPTX export: HTML hard constraints + size decisions + common mistakes
 
-This document covers the path of using `scripts/html2pptx.js` + `pptxgenjs` to translate HTML element-by-element into truly editable PowerPoint text boxes. It is also the only path supported by `export_deck_pptx.mjs`.
+This document talks about the path to use `scripts/html2pptx.js` + `pptxgenjs` to translate HTML element by element into a real editable PowerPoint text box**. It is also the only path supported by `export_deck_pptx.mjs`.
 
-> **Core premise**: To go this route, the HTML must be written to follow the 4 constraints below from the very first line. **Don't write it first and convert later** — after-the-fact remediation will trigger 2-3 hours of rework (real-world experience from the 2026-04-20 Options Private Board project).
+> **Core premise**: To take this path, HTML must be written according to the following 4 constraints from the first line. **It is not a matter of writing and reposting** - post-mortem remediation will trigger 2-3 hours of rework (2026-04-20 Option Private Board Project Actual Testing Pitfall).
 >
-> For scenarios that prioritize visual freedom (animations / web components / CSS gradients / complex SVGs), use the PDF path instead (`export_deck_pdf.mjs` / `export_deck_stage_pdf.mjs`). **Don't** expect pptx export to give you both visual fidelity and editability — that's a physical constraint of the PPTX file format itself (see "Why the 4 constraints aren't a bug but a physical constraint" at the end).
+> For scenes that give priority to visual freedom (animation / web component / CSS gradient / complex SVG), please use the PDF path (`export_deck_pdf.mjs` / `export_deck_stage_pdf.mjs`). **Don’t** expect pptx export to have both visual fidelity and editability - this is the physical constraint of the PPTX file format itself (see "Why the 4 constraints are not bugs but physical constraints" at the end of the article).
 
 ---
 
 ## Canvas size: use 960×540pt (LAYOUT_WIDE)
 
-PPTX units are **inch** (physical size), not px. Decision principle: the body's computedStyle dimensions must **match the presentation layout's inch dimensions** (±0.1", strictly enforced by `validateDimensions` in `html2pptx.js`).
+PPTX unit is **inch** (physical size), not px. Decision-making principle: The computedStyle size of the body must match the inch size of the presentation layout (±0.1", enforced by `validateDimensions` of `html2pptx.js`).
 
 ### Comparison of 3 candidate sizes
 
-| HTML body | Physical size | Corresponding PPT layout | When to choose |
+| HTML body | Physical size | Corresponding to PPT layout | When to choose |
 |---|---|---|---|
-| **`960pt × 540pt`** | **13.333″ × 7.5″** | **pptxgenjs `LAYOUT_WIDE`** | ✅ **Default recommendation** (modern PowerPoint 16:9 standard) |
-| `720pt × 405pt` | 10″ × 5.625″ | Custom | Only when the user specifies the "old PowerPoint Widescreen" template |
-| `1920px × 1080px` | 20″ × 11.25″ | Custom | ❌ Non-standard size; fonts look unusually small when projected |
+| **`960pt × 540pt`** | **13.333″ × 7.5″** | **pptxgenjs `LAYOUT_WIDE`** | ✅ **Default Recommended** (standard in modern PowerPoint 16:9) |
+| `720pt × 405pt` | 10″ × 5.625″ | Custom | Only when the user specifies the "Old PowerPoint Widescreen" template |
+| `1920px × 1080px` | 20″ × 11.25″ | Customized | ❌ Non-standard size, the font appears unusually small after projection |
 
-**Don't think of HTML size as resolution.** PPTX is a vector document; body dimensions determine **physical size**, not clarity. An oversized body (20″×11.25″) won't make text clearer — it just makes the pt font size relatively smaller against the canvas, which actually looks worse when projected/printed.
+**Don’t think of HTML size as resolution. ** PPTX is a vector document, and the body size determines the **physical size** not the clarity. The extra large body (20″×11.25″) doesn’t make the text any clearer – it just makes the font size pt smaller relative to the canvas, which makes it harder to read when projected/printed.
 
-### Three equivalent body declarations
+### Choose one of three ways to write body (equivalent)
 
 ```css
-body { width: 960pt;  height: 540pt; }    /* Clearest, recommended */
-body { width: 1280px; height: 720px; }    /* Equivalent, px convention */
-body { width: 13.333in; height: 7.5in; }  /* Equivalent, inch intuition */
+body { width: 960pt; height: 540pt; } /* Clearest, recommended */
+body { width: 1280px; height: 720px; } /* Equivalent, px custom */
+body { width: 13.333in; height: 7.5in; } /* Equivalent, inch intuition */
 ```
 
-Matching pptxgenjs code:
+Supporting pptxgenjs code:
 
 ```js
 const pptx = new pptxgen();
-pptx.layout = 'LAYOUT_WIDE';  // 13.333 × 7.5 inch, no customization needed
+pptx.layout = 'LAYOUT_WIDE'; // 13.333 × 7.5 inch, no customization required
 ```
 
 ---
 
-## 4 hard constraints (violations cause direct errors)
+## 4 hard constraints (violation will directly report an error)
 
-`html2pptx.js` translates the HTML's DOM element-by-element into PowerPoint objects. PowerPoint's format constraints projected onto HTML = the 4 rules below.
+`html2pptx.js` translates HTML DOM into PowerPoint objects element by element. PowerPoint's formatting constraints projected onto HTML = 4 rules below.
 
-### Rule 1: Text cannot be placed directly inside DIV — must be wrapped in `<p>` or `<h1>`-`<h6>`
+### Rule 1: Text cannot be written directly in DIV - it must be wrapped with `<p>` or `<h1>`-`<h6>`
 
 ```html
-<!-- ❌ Wrong: text directly in div -->
-<div class="title">Q3 Revenue Growth 23%</div>
+<!-- ❌ Error: The text is directly in the div -->
+<div class="title">Q3 revenue increased by 23%</div>
 
-<!-- ✅ Correct: text inside <p> or <h1>-<h6> -->
-<div class="title"><h1>Q3 Revenue Growth 23%</h1></div>
-<div class="body"><p>New users are the main driver</p></div>
+<!-- ✅ Correct: text is in <p> or <h1>-<h6> -->
+<div class="title"><h1>Q3 revenue increased by 23%</h1></div>
+<div class="body"><p>New users are the main driving force</p></div>
 ```
 
-**Why**: PowerPoint text must live inside a text frame, and text frames correspond to paragraph-level HTML elements (p/h*/li). A bare `<div>` has no corresponding text container in PPTX.
+**Why**: PowerPoint text must exist in a text frame, which corresponds to HTML paragraph-level elements (p/h*/li). Bare `<div>` has no corresponding text container in PPTX.
 
-**You also can't use `<span>` to carry primary text** — span is an inline element and can't independently align as a text box. span can only be **embedded inside p/h\*** for local styling (bold, color change).
+**You cannot use `<span>` to carry the main text** - span is an inline element and cannot be independently aligned into a text box. span can only be sandwiched in p/h\* to make local styles (bold, color change).
 
 ### Rule 2: CSS gradients are not supported — only solid colors
 
 ```css
-/* ❌ Wrong */
+/* ❌ Error */
 background: linear-gradient(to right, #FF6B6B, #4ECDC4);
 
 /* ✅ Correct: solid color */
 background: #FF6B6B;
 
-/* ✅ If multi-color stripes are required, use flex children each with its own solid color */
+/* ✅ If multi-color stripes are necessary, use flex sub-elements to each have a solid color */
 .stripe-bar { display: flex; }
 .stripe-bar div { flex: 1; }
 .red   { background: #FF6B6B; }
 .teal  { background: #4ECDC4; }
 ```
 
-**Why**: PowerPoint's shape fill only supports solid/gradient-fill, but pptxgenjs's `fill: { color: ... }` only maps to solid. Going through PowerPoint's native gradient requires writing different structure, which the toolchain doesn't currently support.
+**Why**: PowerPoint’s shape fill only supports solid/gradient-fill, but pptxgenjs’s `fill: { color: ... }` only maps solid. To use gradients, PowerPoint's native gradient requires writing another structure, which is currently not supported by the tool chain.
 
-### Rule 3: Background/border/shadow can only go on DIVs, not on text tags
+### Rule 3: Background/border/shadow can only be on DIV, not on text labels
 
 ```html
-<!-- ❌ Wrong: <p> has background -->
+<!-- ❌ Error: <p> has a background color -->
 <p style="background: #FFD700; border-radius: 4px;">Key content</p>
 
-<!-- ✅ Correct: outer div carries background/border, <p> only handles text -->
+<!-- ✅ Correct: the outer div carries the background/border, <p> is only responsible for the text -->
 <div style="background: #FFD700; border-radius: 4px; padding: 8pt 12pt;">
-  <p>Key content</p>
+  <p>Key contents</p>
 </div>
 ```
 
-**Why**: In PowerPoint, shapes (rectangles/rounded rectangles) and text frames are two different objects. HTML's `<p>` only translates to a text frame; background/border/shadow belong to a shape — they must be written on the **div wrapping the text**.
+**Why**: In PowerPoint, shape (square/rounded rectangle) and text frame are two objects. HTML's `<p>` is only translated into text frame, and the background/border/shadow belongs to shape - it must be written on the div that wraps the text.
 
-### Rule 4: DIVs cannot use `background-image` — use `<img>` tags
+### Rule 4: DIV cannot use `background-image` — use `<img>` tag
 
 ```html
-<!-- ❌ Wrong -->
+<!-- ❌ Error -->
 <div style="background-image: url('chart.png')"></div>
 
 <!-- ✅ Correct -->
 <img src="chart.png" style="position: absolute; left: 50%; top: 20%; width: 300pt; height: 200pt;" />
 ```
 
-**Why**: `html2pptx.js` only extracts image paths from `<img>` elements; it does not parse CSS `background-image` URLs.
+**Why**: `html2pptx.js` only extracts the image path from the `<img>` element and does not parse the CSS `background-image` URL.
+
+---
+
+## Merge text boxes (`data-pptx-merge`)
+
+**Default behavior**: Each `<p>`/`<h1>`-`<h6>` in HTML is an **independent text box** in PPTX. Write 3 `<p>` in the card → There are 3 text boxes stacked on top of each other in the PPT. When editing, you cannot enter the entire paragraph, press enter, line feed, or add a paragraph. You have to change the font size/alignment one by one.
+
+**Solution**: Add `data-pptx-merge="true"` to the outer div, and all `<p>/<h*>` in the container will be merged into **one editable text box**, with paragraph separators separating each paragraph. In PPT, paragraphs can be edited continuously.
+
+```html
+<!-- ✅ Combined writing method: all 4 paragraphs in one text box -->
+<div class="card" data-pptx-merge="true"
+     style="position: absolute; top: 60pt; left: 60pt; width: 420pt;
+            background: #1A4A8A; border-radius: 8pt; padding: 20pt 24pt;">
+  <h2 style="font-size: 24pt; color: #FFFFFF;">Title</h2>
+  <p style="font-size: 14pt; color: #DDEEFF;">The first paragraph of text. </p>
+  <p style="font-size: 14pt; color: #FFD166;">Second paragraph: Change the color for emphasis. </p>
+  <p style="font-size: 14pt; color: #DDEEFF;">Third paragraph: Continue writing in the same text box. </p>
+</div>
+```
+
+**Reserved styles** (per-paragraph written as run options): `font-size`, `color`, `font-family`, `font-weight` (bold), `font-style` (italic), `text-decoration: underline`, `<b>/<i>/<u>/<strong>/<em>/<span>` inline styles.
+
+**Taken from the first paragraph, unified throughout the frame**: `text-align`, `line-height`. Because PowerPoint's alignment and line spacing are at the paragraph/textbox level - there can only be one alignment in a box. If several segments are aligned differently, don't use merge, let them be independent.
+
+**The `background`/`border`/`box-shadow`/`border-radius`** of the container itself is rendered as a shape as usual, and behaves exactly the same as a normal div - that is to say, the blue card bottom + text are still two layers of "shape + text frame", but the text layer collapses from 3-4 text boxes to 1.
+
+**Restrictions**:
+- `data-pptx-merge` cannot be nested (an error will be reported).
+- Containers cannot use `background-image` (same as 4 hard constraints rule 4).
+- Do not place `background`/`border` child divs in the container - they will still be rendered as independent shapes, but the text inside has been merged, which may cause visual misalignment.
+
+**When to use**: Scenarios where the content will be changed repeatedly and you need to continue editing in PPT. If you want to export the archive at once, you don’t need to add it. The behavior is consistent.
 
 ---
 
 ## Path A HTML template skeleton
 
-Each slide is an independent HTML file, scope-isolated from the others (avoiding the CSS pollution of single-file decks).
+Each slide is an independent HTML file, which is scope-isolated (to avoid the CSS pollution of single-file deck).
 
 ```html
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    width: 960pt; height: 540pt;           /* ⚠️ Match LAYOUT_WIDE */
+    width: 960pt; height: 540pt; /* ⚠️ Match LAYOUT_WIDE */
     font-family: system-ui, -apple-system, "PingFang SC", sans-serif;
-    background: #FEFEF9;                    /* Solid color, no gradients */
+    background: #FEFEF9; /* Solid color, no gradient */
     overflow: hidden;
   }
-  /* DIV handles layout/background/border */
+  /* DIV is responsible for layout/background/border */
   .card {
     position: absolute;
-    background: #1A4A8A;                    /* Background on DIV */
+    background: #1A4A8A; /* Background is on DIV */
     border-radius: 4pt;
     padding: 12pt 16pt;
   }
-  /* Text tags only handle font styling — no background/border */
+  /* The text label is only responsible for the font style, without adding a background/border */
   .card h2 { font-size: 24pt; color: #FFFFFF; font-weight: 700; }
   .card p  { font-size: 14pt; color: rgba(255,255,255,0.85); }
 </style>
 </head>
 <body>
 
-  <!-- Title area: outer div for positioning, inner text tags -->
+  <!-- Title area: outer div positioning, inner text label -->
   <div style="position: absolute; top: 40pt; left: 60pt; right: 60pt;">
-    <h1 style="font-size: 36pt; color: #1A1A1A; font-weight: 700;">Use assertion sentences for titles, not topic words</h1>
-    <p style="font-size: 16pt; color: #555555; margin-top: 10pt;">Subtitle adds supplementary explanation</p>
+    <h1 style="font-size: 36pt; color: #1A1A1A; font-weight: 700;">The title should be an assertion, not a subject</h1>
+    <p style="font-size: 16pt; color: #555555; margin-top: 10pt;">Supplementary instructions for subtitle</p>
   </div>
 
-  <!-- Content card: div handles background, h2/p handle text -->
+  <!-- Content card: div is responsible for the background, h2/p is responsible for the text -->
   <div class="card" style="top: 130pt; left: 60pt; width: 240pt; height: 160pt;">
-    <h2>Point one</h2>
-    <p>Brief explanatory text</p>
+    <h2>Point 1</h2>
+    <p>Short description text</p>
   </div>
 
-  <!-- List: use ul/li, don't manually add • symbols -->
+  <!-- List: use ul/li, no manual • Symbols -->
   <div style="position: absolute; top: 320pt; left: 60pt; width: 540pt;">
     <ul style="font-size: 16pt; color: #1A1A1A; padding-left: 24pt; list-style: disc;">
       <li>First point</li>
       <li>Second point</li>
-      <li>Third point</li>
+      <li>The third important point</li>
     </ul>
   </div>
 
-  <!-- Illustration: use <img> tag, not background-image -->
+  <!-- Illustration: use <img> tag, no background-image -->
   <img src="illustration.png" style="position: absolute; right: 60pt; top: 110pt; width: 320pt; height: 240pt;" />
 
 </body>
@@ -165,44 +198,44 @@ Each slide is an independent HTML file, scope-isolated from the others (avoiding
 
 ---
 
-## Common errors quick reference
+## Common Errors Quick Check
 
 | Error message | Cause | Fix |
 |---------|------|---------|
-| `DIV element contains unwrapped text "XXX"` | Bare text inside div | Wrap text in `<p>` or `<h1>`-`<h6>` |
-| `CSS gradients are not supported` | Used linear/radial-gradient | Switch to solid color or use flex children for segments |
-| `Text element <p> has background` | `<p>` tag has a background color | Wrap with `<div>` to carry the background; `<p>` only contains text |
-| `Background images on DIV elements are not supported` | div uses background-image | Switch to `<img>` tag |
-| `HTML content overflows body by Xpt vertically` | Content exceeds 540pt | Reduce content or shrink font size, or use `overflow: hidden` to clip |
-| `HTML dimensions don't match presentation layout` | Body size doesn't match pres layout | Use `960pt × 540pt` body with `LAYOUT_WIDE`; or defineLayout with custom size |
-| `Text box "XXX" ends too close to bottom edge` | A large-font `<p>` is < 0.5 inch from the body bottom edge | Move it up; leave enough bottom margin — PPT's bottom area gets partially obscured anyway |
+| `DIV element contains unwrapped text "XXX"` | There is naked text in the div | Wrap the text in `<p>` or `<h1>`-`<h6>` |
+| `CSS gradients are not supported` | Use linear/radial-gradient | Change to solid color, or use flex child elements to segment |
+| `Text element <p> has background` | `<p>` tag adds background color | Jacket `<div>` carries background, `<p>` only writes text |
+| `Background images on DIV elements are not supported` | div uses background-image | Change to `<img>` tag |
+| `HTML content overflows body by Xpt vertically` | Content exceeds 540pt | Reduce content or font size, or `overflow: hidden` truncate |
+| `HTML dimensions don't match presentation layout` | body size and pres layout do not match | body uses `960pt × 540pt` with `LAYOUT_WIDE`; or defineLayout custom size |
+| `Text box "XXX" ends too close to bottom edge` | Large font size `<p>` distance from the bottom edge of the body < 0.5 inch | Move up, leaving enough bottom margin; the bottom of the PPT itself will be partially covered |
 
 ---
 
-## Basic workflow (3 steps to PPTX)
+## Basic workflow (3 steps out of PPTX)
 
-### Step 1: Write per-page independent HTML following the constraints
+### Step 1: Write independent HTML for each page according to constraints
 
 ```
-MyDeck/
+My Deck/
 ├── slides/
-│   ├── 01-cover.html    # Each file is a complete 960×540pt HTML
+│ ├── 01-cover.html # Each file is complete 960×540pt HTML
 │   ├── 02-agenda.html
 │   └── ...
-└── illustration/        # All images referenced by <img>
+└── illustration/ # All images referenced by <img>
     ├── chart1.png
     └── ...
 ```
 
-### Step 2: Write build.js calling `html2pptx.js`
+### Step 2: Write build.js and call `html2pptx.js`
 
 ```js
 const pptxgen = require('pptxgenjs');
-const html2pptx = require('../scripts/html2pptx.js');  // Script from this skill
+const html2pptx = require('../scripts/html2pptx.js'); // This skill script
 
 (async () => {
   const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';  // 13.333 × 7.5 inch, matching HTML's 960×540pt
+  pres.layout = 'LAYOUT_WIDE'; // 13.333 × 7.5 inch, matching HTML's 960×540pt
 
   const slides = ['01-cover.html', '02-agenda.html', '03-content.html'];
   for (const file of slides) {
@@ -213,89 +246,89 @@ const html2pptx = require('../scripts/html2pptx.js');  // Script from this skill
 })();
 ```
 
-### Step 3: Open and inspect
+### Step 3: Open inspection
 
-- Open the exported PPTX in PowerPoint/Keynote
-- Double-clicking any text should let you edit it directly (if it's an image, Rule 1 was violated)
-- Verify overflow: each page should be within the body bounds, not clipped
+- PowerPoint/Keynote open and export PPTX
+- Double-clicking any text should be able to edit it directly (if it is a violation of Article 1 of the picture description)
+- Verification overflow: Each page should be within the body range and not intercepted
 
 ---
 
-## This path vs. other options (when to choose what)
+## This path vs other options (when to choose which one)
 
-| Need | Choose |
+| Needs | What to choose |
 |------|------|
-| Colleagues will edit text in the PPTX / send to non-technical people for further editing | **This path** (editable, requires writing HTML to the 4 constraints from scratch) |
-| Just for presentation / archive, no further edits | `export_deck_pdf.mjs` (multi-file) or `export_deck_stage_pdf.mjs` (single-file deck-stage), produces vector PDF |
-| Visual freedom prioritized (animations, web components, CSS gradients, complex SVGs), accept non-editable | **PDF** (as above) — PDF is faithful and cross-platform, more suitable than "image-based PPTX" |
+| Colleagues will change the text in PPTX / send it to non-technical personnel for further editing | **Path to this article** (editable, need to write HTML from scratch according to 4 constraints) |
+| Only for lectures/send to archive, no modifications will be made | `export_deck_pdf.mjs` (multiple files) or `export_deck_stage_pdf.mjs` (single file deck-stage), export vector PDF |
+| Prioritize visual freedom (animation, web component, CSS gradient, complex SVG), accept non-editable | **PDF** (same as above) - PDF is both fidelity and cross-platform, more suitable than "image PPTX" |
 
-**Never run html2pptx forcibly on visually-rich HTML** — empirically, visual-driven HTML has a < 30% pass rate, and reworking the remaining pages takes longer than rewriting from scratch. For these scenarios, output PDF, not forced PPTX.
+**Never forcefully run html2pptx on visually freely written HTML** - the measured pass rate of visually driven HTML is < 30%, and the remaining page-by-page transformation is slower than rewriting. This scenario should be output as PDF, not PPTX.
 
 ---
 
-## Fallback: existing visual draft but user insists on editable PPTX
+## Fallback: There is a visual draft but the user insists on editable PPTX
 
-Occasionally you'll encounter this scenario: you/the user have already written a visually-driven HTML (gradients, web components, complex SVGs all used), where PDF would be the natural fit, but the user explicitly says "no, it must be an editable PPTX."
+Occasionally you will encounter this scenario: you/the user have written a visually driven HTML (gradients, web components, and complex SVG are all used). Originally, PDF was the most suitable, but the user clearly said "No, it must be editable PPTX."
 
-**Don't run `html2pptx` forcibly hoping it'll pass** — empirically, visual-driven HTML has a <30% pass rate on html2pptx, with the remaining 70% erroring out or distorting. The correct fallback is:
+**Don’t run `html2pptx` hard and expect it to pass** - The measured pass rate of visually driven HTML on html2pptx is <30%, and the remaining 70% will report errors or aliasing. The correct fallback is:
 
-### Step 1 · State the limitations first (transparent communication)
+### Step 1 · Inform the limitations first (transparent communication)
 
-In one sentence, tell the user three things:
+Tell users three things clearly in one sentence:
 
-> "Your current HTML uses [list specifics: gradients / web components / complex SVGs / ...]. Direct conversion to editable PPTX will fail. I have two options:
-> - A. **Output PDF** (recommended) — visual 100% preserved, recipient can view and print but cannot edit text
-> - B. **Using the visual draft as a blueprint, rewrite an editable HTML version** (preserve color/layout/copy design decisions, but reorganize HTML structure following the 4 hard constraints, **sacrificing** gradients, web components, complex SVGs, and other visual capabilities) → then export as editable PPTX
+> "Your current HTML uses [specific list: gradient / web component / complex SVG / ...], and converting it directly to editable PPTX will fail. I have two options:
+> - A. **Output PDF** (recommended) - 100% visual preservation, the recipient can read and print but cannot change the text
+> - B. **Rewrite a version of editable HTML** based on the visual draft (retain the design decisions of color/layout/copywriting, but reorganize the HTML structure according to 4 hard constraints, **sacrifice** visual capabilities such as gradients, web components, complex SVG, etc.) → then export editable PPTX
 >
-> Which do you want?"
+> Which one do you choose? "
 
-Don't downplay option B — explicitly state **what will be lost**. Let the user make the trade-off.
+Don’t make Plan B sound like a breeze—be clear about what you’ll lose. Let users make choices.
 
-### Step 2 · If user chooses B: AI rewrites proactively, doesn't ask user to do it
+### Step 2 · If the user chooses B: AI will actively rewrite and the user will not be required to write it themselves.
 
-The doctrine here is: **the user provides design intent, you translate it into compliant implementation**. Don't make the user learn the 4 hard constraints and rewrite themselves.
+The doctrine here is: **The user gives the design intent, and you are responsible for translating it into a compliant implementation**. It’s not about asking users to learn 4 hard constraints and then rewrite them themselves.
 
-Principles when rewriting:
-- **Preserve**: color system (primary/secondary/neutral), information hierarchy (title/subtitle/body/annotation), core copy, layout skeleton (top-middle-bottom / left-right columns / grid), page rhythm
-- **Downgrade**: CSS gradient → solid color or flex segments, web component → paragraph-level HTML, complex SVG → simplified `<img>` or solid geometry, shadow → remove or reduce to very weak, custom font → align with system fonts
-- **Rewrite**: bare text → wrap in `<p>` / `<h*>`, `background-image` → `<img>` tag, background/border on `<p>` → carried by outer div
+Principles to follow when rewriting:
+- **Reserved**: Color system (main color/secondary color/neutral color), information level (title/subtitle/text/notes), core copywriting, layout skeleton (top, middle and bottom/left and right columns/grid), page rhythm
+- **Downgrade**: CSS gradient → solid color or flex segment, web component → paragraph-level HTML, complex SVG → simplified `<img>` or solid color geometry, shadow → remove or reduce to minimal, custom font → align to system font
+- **Rewrite**: bare text → wrapped in `<p>` / `<h*>`, `background-image` → `<img>` tag, background border on `<p>` → outer div carried
 
-### Step 3 · Produce comparison checklist (transparent delivery)
+### Step 3 · Output control list (transparent delivery)
 
-After rewriting, give the user a before/after comparison so they know which visual details were simplified:
+After the rewrite is completed, give the user a before/after comparison to let him know which visual details have been simplified:
 
 ```
 Original design → editable version adjustment
-- Title area purple gradient → primary color #5B3DE8 solid background
-- Data card shadow → removed (replaced with 2pt border)
+- Title area purple gradient → main color #5B3DE8 solid color background
+- Data card shadow → Delete (change to 2pt stroke distinction)
 - Complex SVG line chart → simplified to <img> PNG (generated from HTML screenshot)
-- Hero web component animation → static first frame (web components can't be translated)
+- Hero area web component animation → static first frame (web component cannot be translated)
 ```
 
-### Step 4 · Export & dual-format delivery
+### Step 4 · Export & Dual Format Delivery
 
-- `editable` version HTML → run `scripts/export_deck_pptx.mjs` to produce editable PPTX
-- **Recommended**: also keep the original visual draft → run `scripts/export_deck_pdf.mjs` to produce hi-fi PDF
-- Dual-format delivery to user: visual-draft PDF + editable PPTX, each serving its purpose
+- `editable` version of HTML → run `scripts/export_deck_pptx.mjs` to output editable PPTX
+- **It is recommended to keep** the original mockup → Run `scripts/export_deck_pdf.mjs` to output high-fidelity PDF
+- Delivered to users in dual formats: PDF of visual draft + editable PPTX, each performing its own duties
 
-### When to refuse option B outright
+### Under what circumstances should you directly reject Plan B?
 
-In some scenarios the rewrite cost is too high; you should advise the user to abandon editable PPTX:
-- The HTML's core value is animation or interaction (after rewrite only the static first frame remains; 50%+ information loss)
-- More than 30 pages, rewrite cost exceeds 2 hours
-- Visual design depends heavily on precise SVG / custom filters (after rewrite it's almost unrelated to the original)
+In some scenarios, the cost of rewriting is too high, and users should be advised to give up editable PPTX:
+- The core value of HTML is animation or interaction (after rewriting, only the static first frame remains, and the amount of information is lost by 50%+)
+- Number of pages > 30, rewrite cost more than 2 hours
+- The visual design relies deeply on accurate SVG / custom filter (after rewriting, it has almost nothing to do with the original image)
 
-In this case tell the user: "The rewrite cost for this deck is too high. I recommend exporting PDF rather than PPTX. If the recipient really requires pptx format, then accept that visuals will be greatly simplified — would you like to switch to PDF?"
+At this time, the user is told: "The cost of rewriting this deck is too high. It is recommended to use PDF instead of PPTX. If the recipient really wants pptx format, accept that the visuals will be greatly simplified - should it be changed to PDF?"
 
 ---
 
-## Why the 4 constraints aren't a bug but a physical constraint
+## Why the 4 constraints are not bugs but physical constraints
 
-These 4 aren't because the `html2pptx.js` author was lazy — they are the **PowerPoint file format (OOXML) itself's constraints** projected onto HTML:
+These 4 items are not the author of `html2pptx.js` being lazy - they are the result of the constraints of the **PowerPoint file format (OOXML) itself** projected onto HTML:
 
-- Text in PPTX must live in a text frame (`<a:txBody>`), corresponding to paragraph-level HTML elements
-- PPTX shapes and text frames are two separate objects; you can't draw background and write text on the same element
-- PPTX shape fills have limited gradient support (only certain preset gradients, no support for arbitrary CSS gradient angles)
-- PPTX picture objects must reference real image files, not CSS properties
+- Text in PPTX must be in text frame (`<a:txBody>`), corresponding to paragraph-level HTML elements
+- The shape and text frame of PPTX are two objects. It is impossible to draw the background and write text on the same element at the same time.
+- PPTX’s shape fill has limited support for gradients (only certain preset gradients, but does not support CSS arbitrary angle gradients)
+- The picture object of PPTX must refer to the real picture file, not a CSS property
 
-After understanding this, **don't expect the tool to get smarter** — it's HTML that must adapt to PPTX format, not the other way around.
+After understanding this, **don’t expect the tool to become smart** - the HTML writing method must adapt to the PPTX format, not the other way around.

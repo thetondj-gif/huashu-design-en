@@ -2,12 +2,23 @@
 .DS_Store
 **/.DS_Store
 
-# Video render temp (artifacts of render-video.js)
+# Video render temp (render-video.js product)
 .video-tmp-*/
 **/.video-tmp-*/
 
-# Personal asset index (real personal data, only the .example.json template is kept)
+# Personal asset index (real personal data, only retain .example.json template)
 assets/personal-asset-index.json
+
+# Environment variables (sensitive information such as API key, only retain the .env.example template)
+.env
+.env.local
+
+# Local upstream mirror used by maintainer sync tooling
+tools/sync-upstream/.upstream-clone/
+
+# Voiceover working directory (TTS mp3, timeline.json temporary products, can be regenerated)
+**/_narration/
+**/_narration_*/
 
 # Node / editor / OS
 node_modules/
@@ -16,10 +27,7 @@ node_modules/
 .vscode/
 Thumbs.db
 
-# Verification artifacts (screenshots, ad-hoc test scripts)
+# Verification artifacts (screenshots, temporary test scripts)
 demos/_frames_*.png
 demos/_verify.js
 demos/_verify.mjs
-
-# Sync pipeline (maintainer-only)
-tools/sync-upstream/.upstream-clone/
